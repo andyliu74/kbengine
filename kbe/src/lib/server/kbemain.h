@@ -2,7 +2,7 @@
 This source file is part of KBEngine
 For the latest info, see http://www.kbengine.org/
 
-Copyright (c) 2008-2017 KBEngine.
+Copyright (c) 2008-2018 KBEngine.
 
 KBEngine is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -82,8 +82,8 @@ inline void loadConfig()
 {
 	Resmgr::getSingleton().initialize();
 
-	// "../../res/server/kbengine_defs.xml"
-	g_kbeSrvConfig.loadConfig("server/kbengine_defs.xml");
+	// "../../res/server/kbengine_defaults.xml"
+	g_kbeSrvConfig.loadConfig("server/kbengine_defaults.xml");
 
 	// "../../../assets/res/server/kbengine.xml"
 	g_kbeSrvConfig.loadConfig("server/kbengine.xml");

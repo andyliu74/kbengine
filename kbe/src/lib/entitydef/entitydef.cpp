@@ -2,7 +2,7 @@
 This source file is part of KBEngine
 For the latest info, see http://www.kbengine.org/
 
-Copyright (c) 2008-2017 KBEngine.
+Copyright (c) 2008-2018 KBEngine.
 
 KBEngine is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -27,7 +27,7 @@ along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
 #include "resmgr/resmgr.h"
 #include "common/smartpointer.h"
 #include "entitydef/volatileinfo.h"
-#include "entitydef/entity_mailbox.h"
+#include "entitydef/entity_call.h"
 
 #ifndef CODE_INLINE
 #include "entitydef.inl"
@@ -161,8 +161,8 @@ bool EntityDef::initialize(std::vector<PyTypeObject*>& scriptBaseTypes,
 	ENTITY_SCRIPT_UID utype = 1;
 	
 	// 初始化数据类别
-	// assets/scripts/entity_defs/alias.xml
-	if(!DataTypes::initialize(defFilePath + "alias.xml"))
+	// assets/scripts/entity_defs/types.xml
+	if(!DataTypes::initialize(defFilePath + "types.xml"))
 		return false;
 
 	// 打开这个entities.xml文件
@@ -442,12 +442,16 @@ bool EntityDef::loadInterfaces(const std::string& defFilePath,
 
 	XML_FOR_BEGIN(implementsNode)
 	{
-		if (defxml->getKey(implementsNode) != "Interface")
+		if (defxml->getKey(implementsNode) != "Interface" && defxml->getKey(implementsNode) != "Type")
 			continue;
 
 		TiXmlNode* interfaceNode = defxml->enterNode(implementsNode, "Interface");
 		if (!interfaceNode)
-			continue;
+		{
+			interfaceNode = defxml->enterNode(implementsNode, "Type");
+			if(!interfaceNode)
+				continue;
+		}
 
 		std::string interfaceName = defxml->getKey(interfaceNode);
 		std::string interfacefile = defFilePath + "interfaces/" + interfaceName + ".def";
@@ -575,19 +579,50 @@ bool EntityDef::loadAllDefDescriptions(const std::string& moduleName,
 bool EntityDef::validDefPropertyName(ScriptDefModule* pScriptModule, const std::string& name)
 {
 	int i = 0;
-	while(true)
+
+	while (true)
 	{
 		std::string limited = ENTITY_LIMITED_PROPERTYS[i];
 
-		if(limited == "")
+		if (limited == "")
 			break;
 
-		if(name == limited)
+		if (name == limited)
 			return false;
 
 		++i;
 	};
 
+	PyObject* pyKBEModule =
+		PyImport_ImportModule(const_cast<char*>("KBEngine"));
+
+	PyObject* pyEntityModule =
+		PyObject_GetAttrString(pyKBEModule, const_cast<char *>("Entity"));
+
+	Py_DECREF(pyKBEModule);
+
+	if (pyEntityModule != NULL)
+	{
+		PyObject* pyEntityAttr =
+			PyObject_GetAttrString(pyEntityModule, const_cast<char *>(name.c_str()));
+
+		if (pyEntityAttr != NULL)
+		{
+			Py_DECREF(pyEntityAttr);
+			Py_DECREF(pyEntityModule);
+			return false;
+		}
+		else
+		{
+			PyErr_Clear();
+		}
+	}
+	else
+	{
+		PyErr_Clear();
+	}
+
+	Py_XDECREF(pyEntityModule);
 	return true;
 }
 
@@ -693,7 +728,7 @@ bool EntityDef::loadDefPropertys(const std::string& moduleName,
 				if(strType == "ARRAY")
 				{
 					FixedArrayType* dataType1 = new FixedArrayType();
-					if(dataType1->initialize(xml, typeNode))
+					if(dataType1->initialize(xml, typeNode, moduleName + "_" + name))
 						dataType = dataType1;
 					else
 						return false;
@@ -909,7 +944,7 @@ bool EntityDef::loadDefCellMethods(const std::string& moduleName,
 						if(strType == "ARRAY")
 						{
 							FixedArrayType* dataType1 = new FixedArrayType();
-							if(dataType1->initialize(xml, typeNode))
+							if(dataType1->initialize(xml, typeNode, moduleName + "_" + name))
 								dataType = dataType1;
 						}
 						else
@@ -1052,7 +1087,7 @@ bool EntityDef::loadDefBaseMethods(const std::string& moduleName, XML* xml,
 						if(strType == "ARRAY")
 						{
 							FixedArrayType* dataType1 = new FixedArrayType();
-							if(dataType1->initialize(xml, typeNode))
+							if(dataType1->initialize(xml, typeNode, moduleName + "_" + name))
 								dataType = dataType1;
 						}
 						else
@@ -1191,7 +1226,7 @@ bool EntityDef::loadDefClientMethods(const std::string& moduleName, XML* xml,
 						if(strType == "ARRAY")
 						{
 							FixedArrayType* dataType1 = new FixedArrayType();
-							if(dataType1->initialize(xml, typeNode))
+							if(dataType1->initialize(xml, typeNode, moduleName + "_" + name))
 								dataType = dataType1;
 						}
 						else
@@ -1385,9 +1420,10 @@ bool EntityDef::checkDefMethod(ScriptDefModule* pScriptModule,
 		}
 		else
 		{
-			ERROR_MSG(fmt::format("EntityDef::checkDefMethod: class {} does not have method[{}].\n",
-					moduleName.c_str(), iter->first.c_str()));
+			ERROR_MSG(fmt::format("EntityDef::checkDefMethod: class {} does not have method[{}], defined in {}.def!\n",
+				moduleName.c_str(), iter->first.c_str(), moduleName));
 
+			PyErr_Clear();
 			return false;
 		}
 	}
@@ -1612,7 +1648,7 @@ bool EntityDef::installScript(PyObject* mod)
 	script::PyMemoryStream::installScript(NULL);
 	APPEND_SCRIPT_MODULE_METHOD(mod, MemoryStream, script::PyMemoryStream::py_new, METH_VARARGS, 0);
 
-	EntityMailbox::installScript(NULL);
+	EntityCall::installScript(NULL);
 	FixedArray::installScript(NULL);
 	FixedDict::installScript(NULL);
 	VolatileInfo::installScript(NULL);
@@ -1627,7 +1663,7 @@ bool EntityDef::uninstallScript()
 	if(_isInit)
 	{
 		script::PyMemoryStream::uninstallScript();
-		EntityMailbox::uninstallScript();
+		EntityCall::uninstallScript();
 		FixedArray::uninstallScript();
 		FixedDict::uninstallScript();
 		VolatileInfo::uninstallScript();

@@ -2,7 +2,7 @@
 This source file is part of KBEngine
 For the latest info, see http://www.kbengine.org/
 
-Copyright (c) 2008-2017 KBEngine.
+Copyright (c) 2008-2018 KBEngine.
 
 KBEngine is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -302,13 +302,13 @@ void Bots::handleGameTick()
 }
 
 //-------------------------------------------------------------------------------------
-Network::Channel* Bots::findChannelByMailbox(EntityMailbox& mailbox)
+Network::Channel* Bots::findChannelByEntityCall(EntityCall& entitycall)
 {
-	int32 appID = (int32)mailbox.componentID();
+	int32 appID = (int32)entitycall.componentID();
 	ClientObject* pClient = findClientByAppID(appID);
 
 	if(pClient)
-		return pClient->findChannelByMailbox(mailbox);
+		return pClient->findChannelByEntityCall(entitycall);
 
 	return NULL;
 }

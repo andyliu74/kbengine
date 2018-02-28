@@ -2,7 +2,7 @@
 This source file is part of KBEngine
 For the latest info, see http://www.kbengine.org/
 
-Copyright (c) 2008-2017 KBEngine.
+Copyright (c) 2008-2018 KBEngine.
 
 KBEngine is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -563,6 +563,7 @@ public:
 	virtual ~PyDictType();	
 
 	bool isSameType(PyObject* pyValue);
+	virtual PyObject* createFromStream(MemoryStream* mstream);
 
 	PyObject* parseDefaultStr(std::string defaultVal);
 
@@ -579,6 +580,7 @@ public:
 	virtual ~PyTupleType();	
 
 	bool isSameType(PyObject* pyValue);
+	virtual PyObject* createFromStream(MemoryStream* mstream);
 
 	PyObject* parseDefaultStr(std::string defaultVal);
 
@@ -595,6 +597,7 @@ public:
 	virtual ~PyListType();	
 
 	bool isSameType(PyObject* pyValue);
+	virtual PyObject* createFromStream(MemoryStream* mstream);
 
 	PyObject* parseDefaultStr(std::string defaultVal);
 
@@ -623,12 +626,12 @@ public:
 	virtual DATATYPE type() const{ return DATA_TYPE_BLOB; }
 };
 
-class MailboxType : public DataType
+class EntityCallType : public DataType
 {
 protected:
 public:	
-	MailboxType(DATATYPE_UID did = 0);
-	virtual ~MailboxType();	
+	EntityCallType(DATATYPE_UID did = 0);
+	virtual ~EntityCallType();	
 
 	bool isSameType(PyObject* pyValue);
 
@@ -638,9 +641,9 @@ public:
 
 	PyObject* parseDefaultStr(std::string defaultVal);
 
-	const char* getName(void) const{ return "MAILBOX";}
+	const char* getName(void) const{ return "ENTITYCALL";}
 
-	virtual DATATYPE type() const{ return DATA_TYPE_MAILBOX; }
+	virtual DATATYPE type() const{ return DATA_TYPE_ENTITYCALL; }
 };
 
 class FixedArrayType : public DataType
@@ -662,7 +665,7 @@ public:
 
 	PyObject* parseDefaultStr(std::string defaultVal);
 
-	bool initialize(XML* xml, TiXmlNode* node);
+	bool initialize(XML* xml, TiXmlNode* node, const std::string& parentName);
 
 	const char* getName(void) const{ return "ARRAY";}
 
@@ -717,7 +720,7 @@ public:
 	PyObject* createFromStreamEx(MemoryStream* mstream, bool onlyPersistents);
 
 	PyObject* parseDefaultStr(std::string defaultVal);
-	bool initialize(XML* xml, TiXmlNode* node);
+	bool initialize(XML* xml, TiXmlNode* node, std::string& parentName);
 	
 	/**	
 		当传入的这个pyobj并不是当前类型时则按照当前类型创建出一个obj

@@ -2,7 +2,7 @@
 This source file is part of KBEngine
 For the latest info, see http://www.kbengine.org/
 
-Copyright (c) 2008-2017 KBEngine.
+Copyright (c) 2008-2018 KBEngine.
 
 KBEngine is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -61,8 +61,8 @@ PropertyDescription::PropertyDescription(ENTITY_PROPERTY_UID utype,
 {
 	dataType_->incRef();
 
-	// mailbox 无法保存
-	if(isPersistent && strcmp(dataType_->getName(), "MAILBOX") == 0)
+	// entitycall 无法保存
+	if(isPersistent && strcmp(dataType_->getName(), "ENTITYCALL") == 0)
 	{
 		isPersistent_ = false;
 	}

@@ -1,8 +1,8 @@
 BIN  = kbcmd
 SRCS =						\
-	client_templates		\
-	client_templates_unity	\
-	client_templates_ue4	\
+	client_sdk		\
+	client_sdk_unity	\
+	client_sdk_ue4	\
 	kbcmd		\
 	kbcmd_interface	\
 	profile					\
@@ -30,7 +30,7 @@ ifndef NO_USE_LOG4CXX
 endif
 
 #HAS_PCH = 1
-CPPFLAGS += -DKBE_CLIENT_TEMPLATES
+CPPFLAGS += -DKBE_CMD
 
 ifndef KBE_ROOT
 export KBE_ROOT := $(subst /kbe/src/server/tools/$(BIN),,$(CURDIR))

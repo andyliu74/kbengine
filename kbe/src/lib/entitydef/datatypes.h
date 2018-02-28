@@ -2,7 +2,7 @@
 This source file is part of KBEngine
 For the latest info, see http://www.kbengine.org/
 
-Copyright (c) 2008-2017 KBEngine.
+Copyright (c) 2008-2018 KBEngine.
 
 KBEngine is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -56,7 +56,7 @@ public:
 	static DataType* getDataType(const char* name);
 	static DataType* getDataType(DATATYPE_UID uid);
 
-	static bool loadAlias(std::string& file);
+	static bool loadTypes(std::string& file);
 
 	static const DATATYPE_MAP& dataTypes(){ return dataTypes_; }
 	static const UID_DATATYPE_MAP& uid_dataTypes(){ return uid_dataTypes_; }

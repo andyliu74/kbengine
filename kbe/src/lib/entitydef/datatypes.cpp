@@ -2,7 +2,7 @@
 This source file is part of KBEngine
 For the latest info, see http://www.kbengine.org/
 
-Copyright (c) 2008-2017 KBEngine.
+Copyright (c) 2008-2018 KBEngine.
 
 KBEngine is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
@@ -56,35 +56,35 @@ void DataTypes::finalise(void)
 bool DataTypes::initialize(std::string file)
 {
 	// 初始化一些基础类别
-	addDataType("UINT8",	new IntType<uint8>);
-	addDataType("UINT16",	new IntType<uint16>);
-	addDataType("UINT64",	new UInt64Type);
-	addDataType("UINT32",	new UInt32Type);
+	addDataType("UINT8",		new IntType<uint8>);
+	addDataType("UINT16",		new IntType<uint16>);
+	addDataType("UINT64",		new UInt64Type);
+	addDataType("UINT32",		new UInt32Type);
 
-	addDataType("INT8",		new IntType<int8>);
-	addDataType("INT16",	new IntType<int16>);
-	addDataType("INT32",	new IntType<int32>);
-	addDataType("INT64",	new Int64Type);
+	addDataType("INT8",			new IntType<int8>);
+	addDataType("INT16",		new IntType<int16>);
+	addDataType("INT32",		new IntType<int32>);
+	addDataType("INT64",		new Int64Type);
 
-	addDataType("STRING",	new StringType);
-	addDataType("UNICODE",	new UnicodeType);
-	addDataType("FLOAT",	new FloatType);
-	addDataType("DOUBLE",	new DoubleType);
-	addDataType("PYTHON",	new PythonType);
-	addDataType("PY_DICT",	new PyDictType);
-	addDataType("PY_TUPLE",	new PyTupleType);
-	addDataType("PY_LIST",	new PyListType);
-	addDataType("MAILBOX",	new MailboxType);
-	addDataType("BLOB",		new BlobType);
+	addDataType("STRING",		new StringType);
+	addDataType("UNICODE",		new UnicodeType);
+	addDataType("FLOAT",		new FloatType);
+	addDataType("DOUBLE",		new DoubleType);
+	addDataType("PYTHON",		new PythonType);
+	addDataType("PY_DICT",		new PyDictType);
+	addDataType("PY_TUPLE",		new PyTupleType);
+	addDataType("PY_LIST",		new PyListType);
+	addDataType("ENTITYCALL",	new EntityCallType);
+	addDataType("BLOB",			new BlobType);
 
-	addDataType("VECTOR2",	new Vector2Type);
-	addDataType("VECTOR3",	new Vector3Type);
-	addDataType("VECTOR4",	new Vector4Type);
-	return loadAlias(file);
+	addDataType("VECTOR2",		new Vector2Type);
+	addDataType("VECTOR3",		new Vector3Type);
+	addDataType("VECTOR4",		new Vector4Type);
+	return loadTypes(file);
 }
 
 //-------------------------------------------------------------------------------------
-bool DataTypes::loadAlias(std::string& file)
+bool DataTypes::loadTypes(std::string& file)
 {
 	TiXmlNode* node = NULL;
 	SmartPointer<XML> xml(new XML(Resmgr::getSingleton().matchRes(file).c_str()));
@@ -109,7 +109,7 @@ bool DataTypes::loadAlias(std::string& file)
 		// 不允许前面加_, 因为内部产生的一些临时结构前面使用了_, 避免误判
 		if (aliasName[0] == '_')
 		{
-			ERROR_MSG(fmt::format("DataTypes::loadAlias: Not allowed to use the prefix \"_\"! aliasName={}\n",
+			ERROR_MSG(fmt::format("DataTypes::loadTypes: Not allowed to use the prefix \"_\"! aliasName={}\n",
 				aliasName.c_str()));
 			return false;
 		}
@@ -121,13 +121,13 @@ bool DataTypes::loadAlias(std::string& file)
 			{
 				FixedDictType* fixedDict = new FixedDictType;
 				
-				if(fixedDict->initialize(xml.get(), childNode))
+				if(fixedDict->initialize(xml.get(), childNode, aliasName))
 				{
 					addDataType(aliasName, fixedDict);
 				}
 				else
 				{
-					ERROR_MSG(fmt::format("DataTypes::loadAlias: parse FIXED_DICT [{}] error!\n", 
+					ERROR_MSG(fmt::format("DataTypes::loadTypes: parse FIXED_DICT [{}] error!\n", 
 						aliasName.c_str()));
 					
 					delete fixedDict;
@@ -138,13 +138,13 @@ bool DataTypes::loadAlias(std::string& file)
 			{
 				FixedArrayType* fixedArray = new FixedArrayType;
 				
-				if(fixedArray->initialize(xml.get(), childNode))
+				if(fixedArray->initialize(xml.get(), childNode, aliasName))
 				{
 					addDataType(aliasName, fixedArray);
 				}
 				else
 				{
-					ERROR_MSG(fmt::format("DataTypes::loadAlias: parse ARRAY [{}] error!\n", 
+					ERROR_MSG(fmt::format("DataTypes::loadTypes: parse ARRAY [{}] error!\n", 
 						aliasName.c_str()));
 					
 					delete fixedArray;
@@ -156,7 +156,7 @@ bool DataTypes::loadAlias(std::string& file)
 				DataType* dataType = getDataType(type);
 				if(dataType == NULL)
 				{
-					ERROR_MSG(fmt::format("DataTypes::loadAlias:can't fount type {} by alias[{}].\n", 
+					ERROR_MSG(fmt::format("DataTypes::loadTypes: can't fount type {} by alias[{}].\n", 
 						type.c_str(), aliasName.c_str()));
 					
 					return false;
