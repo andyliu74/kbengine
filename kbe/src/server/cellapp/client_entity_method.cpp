@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 #include "witness.h"
 #include "cellapp.h"
@@ -42,9 +24,12 @@ SCRIPT_GETSET_DECLARE_END()
 SCRIPT_INIT(ClientEntityMethod, tp_call, 0, 0, 0, 0)	
 
 //-------------------------------------------------------------------------------------
-ClientEntityMethod::ClientEntityMethod(MethodDescription* methodDescription, 
+ClientEntityMethod::ClientEntityMethod(PropertyDescription* pComponentPropertyDescription,
+	const ScriptDefModule* pScriptModule, MethodDescription* methodDescription,
 		ENTITY_ID srcEntityID, ENTITY_ID clientEntityID):
 script::ScriptObject(getScriptType(), false),
+pComponentPropertyDescription_(pComponentPropertyDescription),
+pScriptModule_(pScriptModule),
 methodDescription_(methodDescription),
 srcEntityID_(srcEntityID),
 clientEntityID_(clientEntityID)
@@ -128,6 +113,23 @@ PyObject* ClientEntityMethod::callmethod(PyObject* args, PyObject* kwds)
 	if(methodDescription->checkArgs(args))
 	{
 		MemoryStream* mstream = MemoryStream::createPoolObject();
+
+		// 如果是广播给组件的消息
+		if (pComponentPropertyDescription_)
+		{
+			if (pScriptModule_->usePropertyDescrAlias())
+				(*mstream) << pComponentPropertyDescription_->aliasIDAsUint8();
+			else
+				(*mstream) << pComponentPropertyDescription_->getUType();
+		}
+		else
+		{
+			if (pScriptModule_->usePropertyDescrAlias())
+				(*mstream) << (uint8)0;
+			else
+				(*mstream) << (ENTITY_PROPERTY_UID)0;
+		}
+
 		methodDescription->addToStream(mstream, args);
 		
 		Network::Bundle* pSendBundle = pChannel->createSendBundle();
@@ -135,7 +137,7 @@ PyObject* ClientEntityMethod::callmethod(PyObject* args, PyObject* kwds)
 
 		int ialiasID = -1;
 		const Network::MessageHandler& msgHandler = 
-				srcEntity->pWitness()->getViewEntityMessageHandler(ClientInterface::onRemoteMethodCall,
+				srcEntity->pWitness()->getViewEntityMessageHandler(ClientInterface::onRemoteMethodCall, 
 				ClientInterface::onRemoteMethodCallOptimized, clientEntityID_, ialiasID);
 
 		ENTITY_MESSAGE_FORWARD_CLIENT_BEGIN(pSendBundle, msgHandler, viewEntityMessage);

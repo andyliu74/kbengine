@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 #ifndef KBE_WITNESS_H
 #define KBE_WITNESS_H
@@ -152,7 +134,7 @@ public:
 	uint32 getEntityVolatileDataUpdateFlags(Entity* otherEntity);
 	
 
-	const Network::MessageHandler& getViewEntityMessageHandler(const Network::MessageHandler& normalMsgHandler,
+	const Network::MessageHandler& getViewEntityMessageHandler(const Network::MessageHandler& normalMsgHandler, 
 											   const Network::MessageHandler& optimizedMsgHandler, ENTITY_ID entityID, int& ialiasID);
 
 	bool entityID2AliasID(ENTITY_ID id, uint8& aliasID);
@@ -209,7 +191,7 @@ private:
 
 	// 当前entity的view半径
 	float									viewRadius_;
-	// 当前entityview的一个滞后范围
+	// 当前entityView的一个滞后范围
 	float									viewHysteresisArea_;
 
 	ViewTrigger*							pViewTrigger_;

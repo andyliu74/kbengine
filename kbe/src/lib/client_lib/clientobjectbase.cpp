@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 #include "entity.h"
 #include "config.h"
@@ -230,9 +212,21 @@ bool ClientObjectBase::destroyEntity(ENTITY_ID entityID, bool callScript)
 }
 
 //-------------------------------------------------------------------------------------	
-Network::Channel* ClientObjectBase::findChannelByEntityCall(EntityCall& entitycall)
+Network::Channel* ClientObjectBase::findChannelByEntityCall(EntityCallAbstract& entityCall)
 {
 	return pServerChannel_;
+}
+
+//-------------------------------------------------------------------------------------
+PyObject* ClientObjectBase::tryGetEntity(COMPONENT_ID componentID, ENTITY_ID eid)
+{
+	client::Entity* entity = pEntities_->find(eid);
+	if (entity == NULL) {
+		ERROR_MSG(fmt::format("ClientObjectBase::tryGetEntity: can't found entity:{}.\n", eid));
+		return NULL;
+	}
+
+	return entity;
 }
 
 //-------------------------------------------------------------------------------------	
@@ -317,6 +311,10 @@ client::Entity* ClientObjectBase::createEntity(const char* entityType, PyObject*
 	EntityCall* base, EntityCall* cell)
 {
 	KBE_ASSERT(eid > 0);
+
+	EntityDef::context().currClientappID = appID();
+	EntityDef::context().currEntityID = eid;
+	EntityDef::context().currComponentType = CLIENT_TYPE;
 
 	ScriptDefModule* sm = EntityDef::findScriptModule(entityType);
 	if(sm == NULL)
@@ -781,10 +779,10 @@ void ClientObjectBase::onCreatedProxies(Network::Channel * pChannel, uint64 rndU
 			name_, rndUUID, eid, entityType));
 
 		// 设置entity的baseEntityCall
-		EntityCall* entitycall = new EntityCall(EntityDef::findScriptModule(entityType.c_str()), 
+		EntityCall* entityCall = new EntityCall(EntityDef::findScriptModule(entityType.c_str()), 
 			NULL, appID(), eid, ENTITYCALL_TYPE_BASE);
 
-		client::Entity* pEntity = createEntity(entityType.c_str(), NULL, !hasBufferedMessage, eid, true, entitycall, NULL);
+		client::Entity* pEntity = createEntity(entityType.c_str(), NULL, !hasBufferedMessage, eid, true, entityCall, NULL);
 		KBE_ASSERT(pEntity != NULL);
 
 		if(hasBufferedMessage)
@@ -854,10 +852,10 @@ void ClientObjectBase::onEntityEnterWorld(Network::Channel * pChannel, MemoryStr
 			KBE_ASSERT(sm);
 			
 			// 设置entity的cellEntityCall
-			EntityCall* entitycall = new EntityCall(EntityDef::findScriptModule(sm->getName()), 
+			EntityCall* entityCall = new EntityCall(EntityDef::findScriptModule(sm->getName()), 
 				NULL, appID(), eid, ENTITYCALL_TYPE_CELL);
 
-			entity = createEntity(sm->getName(), NULL, false, eid, true, NULL, entitycall);
+			entity = createEntity(sm->getName(), NULL, false, eid, true, NULL, entityCall);
 			KBE_ASSERT(entity != NULL);
 
 			// 先更新属性再初始化脚本
@@ -897,10 +895,10 @@ void ClientObjectBase::onEntityEnterWorld(Network::Channel * pChannel, MemoryStr
 			KBE_ASSERT(entity->cellEntityCall() == NULL);
 
 			// 设置entity的cellEntityCall
-			EntityCall* entitycall = new EntityCall(entity->pScriptModule(), 
+			EntityCall* entityCall = new EntityCall(entity->pScriptModule(), 
 				NULL, appID(), eid, ENTITYCALL_TYPE_CELL);
 
-			entity->cellEntityCall(entitycall);
+			entity->cellEntityCall(entityCall);
 
 			// 安全起见， 这里清空一下
 			// 如果服务端上使用giveClientTo切换控制权

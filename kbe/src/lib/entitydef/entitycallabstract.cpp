@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 
 #include "entitycallabstract.h"
@@ -36,7 +18,8 @@ along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 namespace KBEngine{
-
+EntityCallAbstract::EntityCallCallHookFunc*	EntityCallAbstract::__hookCallFuncPtr = NULL;
+EntityCallAbstract::FindChannelFunc EntityCallAbstract::__findChannelFunc;
 
 SCRIPT_METHOD_DECLARE_BEGIN(EntityCallAbstract)
 SCRIPT_METHOD_DECLARE("__reduce_ex__",				reduce_ex__,			METH_VARARGS,		0)
@@ -74,7 +57,13 @@ EntityCallAbstract::~EntityCallAbstract()
 //-------------------------------------------------------------------------------------
 void EntityCallAbstract::newCall(Network::Bundle& bundle)
 {
-	// 如果是server端的entitycall
+	newCall_(bundle);
+}
+
+//-------------------------------------------------------------------------------------
+void EntityCallAbstract::newCall_(Network::Bundle& bundle)
+{
+	// 如果是server端的entityCall
 	if(g_componentType != CLIENT_TYPE && g_componentType != BOTS_TYPE)
 	{
 		// 如果ID为0，则这是一个客户端组件，否则为服务端。
@@ -88,7 +77,7 @@ void EntityCallAbstract::newCall(Network::Bundle& bundle)
 
 			if(cinfos != NULL)
 			{
-				// 找到对应的组件投递过去， 如果这个entitycall还需要中转比如 e.base.cell ， 则由baseapp转往cellapp
+				// 找到对应的组件投递过去， 如果这个entityCall还需要中转比如 e.base.cell ， 则由baseapp转往cellapp
 				if(cinfos->componentType == BASEAPP_TYPE)
 				{
 					bundle.newMessage(BaseappInterface::onEntityCall);
@@ -100,7 +89,7 @@ void EntityCallAbstract::newCall(Network::Bundle& bundle)
 			}
 			else
 			{
-				ERROR_MSG(fmt::format("EntityCallAbstract::newCall: not found component({}), entityID({})!\n",
+				ERROR_MSG(fmt::format("EntityCallAbstract::newCall_: not found component({}), entityID({})!\n",
 					componentID_, id_));
 			}
 		}
@@ -113,7 +102,7 @@ void EntityCallAbstract::newCall(Network::Bundle& bundle)
 	}
 	else
 	{
-		// 如果是客户端上的entitycall调用服务端方法只存在调用cell或者base
+		// 如果是客户端上的entityCall调用服务端方法只存在调用cell或者base
 		switch(type_)
 		{
 		case ENTITYCALL_TYPE_BASE:
@@ -182,6 +171,15 @@ PyObject* EntityCallAbstract::__py_reduce_ex__(PyObject* self, PyObject* protoco
 PyObject* EntityCallAbstract::pyGetID()
 { 
 	return PyLong_FromLong(id()); 
+}
+
+//-------------------------------------------------------------------------------------
+Network::Channel* EntityCallAbstract::getChannel(void)
+{
+	if (__findChannelFunc == NULL)
+		return NULL;
+
+	return __findChannelFunc(*this);
 }
 
 //-------------------------------------------------------------------------------------

@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 
 #ifndef KBE_DATA_TYPE_H
@@ -46,7 +28,8 @@ namespace KBEngine{
 }
 
 class RefCountable;
-
+class ScriptDefModule;
+class PropertyDescription;
 
 class DataType : public RefCountable
 {
@@ -773,6 +756,41 @@ protected:
 	std::string						moduleName_;		
 };
 
+class EntityComponentType : public DataType
+{
+protected:
+public:
+	EntityComponentType(ScriptDefModule* pScriptDefModule, DATATYPE_UID did = 0);
+	virtual ~EntityComponentType();
+
+	bool isSameType(PyObject* pyValue);
+	bool isSamePersistentType(PyObject* pyValue);
+	bool isSameCellDataType(PyObject* pyValue);
+
+	void addToStream(MemoryStream* mstream, PyObject* pyValue);
+	void addPersistentToStream(MemoryStream* mstream, PyObject* pyValue);
+	void addCellDataToStream(MemoryStream* mstream, uint32 flags, PyObject* pyValue, 
+		ENTITY_ID ownerID, PropertyDescription* parentPropertyDescription, COMPONENT_TYPE sendtoComponentType, bool checkValue);
+
+	PyObject* createFromStream(MemoryStream* mstream);
+	PyObject* createFromPersistentStream(MemoryStream* mstream);
+	PyObject* createCellData();
+	PyObject* createCellDataFromPersistentStream(MemoryStream* mstream);
+	PyObject* createCellDataFromStream(MemoryStream* mstream);
+
+	PyObject* parseDefaultStr(std::string defaultVal);
+
+	const char* getName(void) const { return "ENTITY_COMPONENT"; }
+
+	virtual DATATYPE type() const { return DATA_TYPE_ENTITY_COMPONENT; }
+
+	ScriptDefModule* pScriptDefModule() {
+		return pScriptDefModule_;
+	}
+
+protected:
+	ScriptDefModule* pScriptDefModule_;
+};
 
 template class IntType<uint8>;
 template class IntType<uint16>;

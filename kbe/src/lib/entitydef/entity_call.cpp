@@ -1,25 +1,8 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 
 #include "entity_call.h"
+#include "entity_component_call.h"
 #include "scriptdef_module.h"
 #include "helper/debug_helper.h"
 #include "network/channel.h"	
@@ -31,11 +14,6 @@ along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace KBEngine
 {
-
-// 获得某个entity的函数地址
-EntityCall::GetEntityFunc EntityCall::__getEntityFunc;
-EntityCall::FindChannelFunc EntityCall::__findChannelFunc;
-EntityCall::EntityCallCallHookFunc*	EntityCall::__hookCallFuncPtr = NULL;
 EntityCall::ENTITYCALLS EntityCall::entityCalls;
 
 SCRIPT_METHOD_DECLARE_BEGIN(EntityCall)
@@ -147,6 +125,15 @@ PyObject* EntityCall::onScriptGetAttribute(PyObject* attr)
 
 		return createRemoteMethod(pMethodDescription);
 	}
+	else
+	{
+		// 是否是组件方法调用
+		PropertyDescription* pComponentPropertyDescription = pScriptModule_->findComponentPropertyDescription(ccattr);
+		if (pComponentPropertyDescription)
+		{
+			return new EntityComponentCall(this, pComponentPropertyDescription);
+		}
+	}
 
 	// 首先要求名称不能为自己  比如：自身是一个cell， 不能使用cell.cell
 	if(strcmp(ccattr, ENTITYCALL_TYPE_TO_NAME_TABLE[type_]) != 0)
@@ -231,12 +218,6 @@ PyObject* EntityCall::tp_str()
 }
 
 //-------------------------------------------------------------------------------------
-PyObject* EntityCall::tryGetEntity(COMPONENT_ID componentID, ENTITY_ID entityID)
-{
-	return __getEntityFunc(componentID, entityID);
-}
-
-//-------------------------------------------------------------------------------------
 PyObject* EntityCall::__unpickle__(PyObject* self, PyObject* args)
 {
 	ENTITY_ID eid = 0;
@@ -266,7 +247,7 @@ PyObject* EntityCall::__unpickle__(PyObject* self, PyObject* args)
 
 	// COMPONENT_TYPE componentType = ENTITYCALL_COMPONENT_TYPE_MAPPING[(ENTITYCALL_TYPE)type];
 	
-	PyObject* entity = tryGetEntity(componentID, eid);
+	PyObject* entity = EntityDef::tryGetEntity(componentID, eid);
 	if(entity != NULL)
 	{
 		Py_INCREF(entity);
@@ -289,18 +270,20 @@ void EntityCall::onInstallScript(PyObject* mod)
 }
 
 //-------------------------------------------------------------------------------------
-Network::Channel* EntityCall::getChannel(void)
-{
-	if(__findChannelFunc == NULL)
-		return NULL;
-
-	return __findChannelFunc(*this);
+void EntityCall::reload()
+{ 
+	pScriptModule_ = EntityDef::findScriptModule(scriptModuleName_.c_str());
 }
 
 //-------------------------------------------------------------------------------------
-void EntityCall::reload()
+void EntityCall::newCall(Network::Bundle& bundle)
 {
-	pScriptModule_ = EntityDef::findScriptModule(scriptModuleName_.c_str());
+	newCall_(bundle);
+
+	if (isClient() && pScriptModule_->usePropertyDescrAlias())
+		bundle << (uint8)0;
+	else
+		bundle << (ENTITY_PROPERTY_UID)0;
 }
 
 //-------------------------------------------------------------------------------------

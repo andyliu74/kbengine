@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 #ifndef KBE_CLIENTAPP_ENTITY_H
 #define KBE_CLIENTAPP_ENTITY_H
@@ -27,6 +9,7 @@ along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
 #include "common/common.h"
 #include "helper/debug_helper.h"
 #include "entitydef/entity_call.h"
+#include "entitydef/entity_component.h"
 #include "pyscript/math.h"
 #include "pyscript/scriptobject.h"
 #include "entitydef/datatypes.h"	
@@ -38,6 +21,7 @@ along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
 namespace KBEngine{
 class EntityCall;
 class ClientObjectBase;
+class EntityComponent;
 
 namespace Network
 {
@@ -60,19 +44,19 @@ public:
 	/** 
 		定义属性数据被改变了 
 	*/
-	void onDefDataChanged(const PropertyDescription* propertyDescription, 
+	void onDefDataChanged(EntityComponent* pEntityComponent, const PropertyDescription* propertyDescription,
 			PyObject* pyData);
 	
 	/** 
-		entitycall section
+		entityCall section
 	*/
 	INLINE EntityCall* baseEntityCall() const;
 	DECLARE_PY_GET_MOTHOD(pyGetBaseEntityCall);
-	INLINE void baseEntityCall(EntityCall* entitycall);
+	INLINE void baseEntityCall(EntityCall* entityCall);
 	
 	INLINE EntityCall* cellEntityCall() const;
 	DECLARE_PY_GET_MOTHOD(pyGetCellEntityCall);
-	INLINE void cellEntityCall(EntityCall* entitycall);
+	INLINE void cellEntityCall(EntityCall* entityCall);
 
 	/** 
 		脚本获取和设置entity的position 
@@ -195,8 +179,8 @@ public:
     void onControlled(bool p_controlled);
 
 protected:
-	EntityCall*								cellEntityCall_;					// 这个entity的cell-entitycall
-	EntityCall*								baseEntityCall_;					// 这个entity的base-entitycall
+	EntityCall*								cellEntityCall_;					// 这个entity的cell-entityCall
+	EntityCall*								baseEntityCall_;					// 这个entity的base-entityCall
 
 	Position3D								position_, serverPosition_;			// entity的当前位置
 	Direction3D								direction_;							// entity的当前方向

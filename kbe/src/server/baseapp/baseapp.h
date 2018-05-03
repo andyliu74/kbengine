@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 
 #ifndef KBE_BASEAPP_H
@@ -52,7 +34,7 @@ class TelnetServer;
 class RestoreEntityHandler;
 class InitProgressHandler;
 
-class Baseapp :	public EntityApp<Entity>, 
+class Baseapp :	public EntityApp<Entity>,
 				public Singleton<Baseapp>
 {
 public:
@@ -407,9 +389,9 @@ public:
 	void onChargeCB(Network::Channel* pChannel, KBEngine::MemoryStream& s);
 
 	/**
-		hook entitycall call
+		hook entitycallcall
 	*/
-	RemoteEntityMethod* createEntityCallCallEntityRemoteMethod(MethodDescription* pMethodDescription, EntityCall* pEntityCall);
+	RemoteEntityMethod* createEntityCallCallEntityRemoteMethod(MethodDescription* pMethodDescription, EntityCallAbstract* pEntityCall);
 
 	virtual void onHello(Network::Channel* pChannel, 
 		const std::string& verInfo, 
@@ -472,7 +454,7 @@ public:
 	/**
 		通过dbid从数据库中删除一个实体
 
-		从数据库删除实体， 如果实体不在线则可以直接删除回调返回true， 如果在线则回调返回的是entity的entitycall， 其他任何原因都返回false.
+		从数据库删除实体， 如果实体不在线则可以直接删除回调返回true， 如果在线则回调返回的是entity的entityCall， 其他任何原因都返回false.
 	*/
 	static PyObject* __py_deleteEntityByDBID(PyObject* self, PyObject* args);
 

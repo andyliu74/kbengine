@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 
 #include "clientapp.h"
@@ -30,6 +12,7 @@ along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
 #include "network/tcp_packet_receiver.h"
 #include "thread/threadpool.h"
 #include "entitydef/entity_call.h"
+#include "entitydef/entity_component.h"
 #include "entitydef/entitydef.h"
 #include "server/components.h"
 #include "server/serverconfig.h"
@@ -75,8 +58,8 @@ state_(C_STATE_INIT)
 	networkInterface_.pChannelTimeOutHandler(this);
 	networkInterface_.pChannelDeregisterHandler(this);
 
-	// 初始化entitycall模块获取channel函数地址
-	EntityCall::setFindChannelFunc(std::tr1::bind(&ClientApp::findChannelByEntityCall, this, 
+	// 初始化entityCall模块获取channel函数地址
+	EntityCallAbstract::setFindChannelFunc(std::tr1::bind(&ClientApp::findChannelByEntityCall, this,
 		std::tr1::placeholders::_1));
 
 	KBEngine::Network::MessageHandlers::pMainMessageHandlers = &ClientInterface::messageHandlers;
@@ -87,7 +70,7 @@ state_(C_STATE_INIT)
 //-------------------------------------------------------------------------------------
 ClientApp::~ClientApp()
 {
-	EntityCall::resetCallHooks();
+	EntityCallAbstract::resetCallHooks();
 	SAFE_RELEASE(pBlowfishFilter_);
 }
 
@@ -251,6 +234,7 @@ bool ClientApp::uninstallPyScript()
 bool ClientApp::installPyModules()
 {
 	registerScript(client::Entity::getScriptType());
+	registerScript(EntityComponent::getScriptType());
 	onInstallPyModules();
 
 	// 注册设置脚本输出类型

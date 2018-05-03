@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 #include "datatype.h"
 #include "datatypes.h"
@@ -24,6 +6,8 @@ along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
 #include "fixeddict.h"
 #include "fixedarray.h"
 #include "entity_call.h"
+#include "property.h"
+#include "entity_component.h"
 #include "scriptdef_module.h"
 #include "pyscript/vector2.h"
 #include "pyscript/vector3.h"
@@ -1463,7 +1447,7 @@ void EntityCallType::addToStream(MemoryStream* mstream, PyObject* pyValue)
 				}
 				else
 				{
-					// 某些情况下会为NULL， 例如：使用了weakproxy，而entitycall已经变为NULL了
+					// 某些情况下会为NULL， 例如：使用了weakproxy，而entityCall已经变为NULL了
 					SCRIPT_ERROR_CHECK();
 					id = 0;
 					cid = 0;
@@ -1471,7 +1455,7 @@ void EntityCallType::addToStream(MemoryStream* mstream, PyObject* pyValue)
 			}
 		}
 		
-		// 只能是entitycall
+		// 只能是entityCall
 		if(id == 0)
 		{
 			EntityCallAbstract* pEntityCallAbstract = static_cast<EntityCallAbstract*>(pyValue);
@@ -1503,7 +1487,7 @@ PyObject* EntityCallType::createFromStream(MemoryStream* mstream)
 		// 允许传输Py_None
 		if(id > 0)
 		{
-			PyObject* entity = EntityCall::tryGetEntity(cid, id);
+			PyObject* entity = EntityDef::tryGetEntity(cid, id);
 			if(entity != NULL)
 			{
 				Py_INCREF(entity);
@@ -1527,7 +1511,8 @@ DataType(did)
 //-------------------------------------------------------------------------------------
 FixedArrayType::~FixedArrayType()
 {
-	dataType_->decRef();
+	if(dataType_)
+		dataType_->decRef();
 }
 
 //-------------------------------------------------------------------------------------
@@ -2341,6 +2326,407 @@ PyObject* FixedDictType::createFromStreamEx(MemoryStream* mstream, bool onlyPers
 	}
 
 	return pydict;
+}
+
+//-------------------------------------------------------------------------------------
+EntityComponentType::EntityComponentType(ScriptDefModule* pScriptDefModule, DATATYPE_UID did) :
+	DataType(did),
+	pScriptDefModule_(pScriptDefModule)
+{
+}
+
+//-------------------------------------------------------------------------------------
+EntityComponentType::~EntityComponentType()
+{
+} 
+
+//-------------------------------------------------------------------------------------
+bool EntityComponentType::isSameType(PyObject* pyValue)
+{
+	if (pyValue == NULL || !(PyObject_TypeCheck(pyValue, EntityComponent::getScriptType())))
+	{
+		OUT_TYPE_ERROR("ENTITY_COMPONENT");
+		return false;
+	}
+
+	EntityComponent* pEntityComponent = static_cast<EntityComponent*>(pyValue);
+	return pEntityComponent->isSameType(pyValue);
+}
+
+//-------------------------------------------------------------------------------------
+bool EntityComponentType::isSamePersistentType(PyObject* pyValue)
+{
+	if (pyValue == NULL)
+	{
+		OUT_TYPE_ERROR("ENTITY_COMPONENT");
+		return false;
+	}
+
+	if (!(PyObject_TypeCheck(pyValue, EntityComponent::getScriptType())))
+	{
+		if (!PyDict_Check(pyValue))
+		{
+			OUT_TYPE_ERROR("ENTITY_COMPONENT");
+		}
+
+		return isSameCellDataType(pyValue);
+	}
+
+	EntityComponent* pEntityComponent = static_cast<EntityComponent*>(pyValue);
+	return pEntityComponent->isSamePersistentType(pyValue);
+}
+
+//-------------------------------------------------------------------------------------
+bool EntityComponentType::isSameCellDataType(PyObject* pyValue)
+{
+	if (!PyDict_Check(pyValue))
+		return false;
+
+	ScriptDefModule::PROPERTYDESCRIPTION_MAP& propertyDescrs = pScriptDefModule_->getPersistentPropertyDescriptions();
+	ScriptDefModule::PROPERTYDESCRIPTION_MAP::const_iterator iter = propertyDescrs.begin();
+
+	for (; iter != propertyDescrs.end(); ++iter)
+	{
+		PropertyDescription* propertyDescription = iter->second;
+
+		if (!propertyDescription->hasCell())
+			continue;
+
+		PyObject* pyVal = PyDict_GetItemString(pyValue, propertyDescription->getName());
+		
+		if (pyVal)
+		{
+			if (!propertyDescription->getDataType()->isSameType(pyVal))
+			{
+				ERROR_MSG(fmt::format("EntityComponent::isSameCellDataType: {} type(curr_py: {} != {}) error! name={}, utype={}, domain={}.\n",
+					propertyDescription->getName(), (pyVal ? pyVal->ob_type->tp_name : "unknown"), propertyDescription->getDataType()->getName(),
+					pScriptDefModule_ ? pScriptDefModule_->getName() : "", pScriptDefModule_ ? pScriptDefModule_->getUType() : 0,
+					COMPONENT_NAME_EX(CELLAPP_TYPE)));
+
+				return false;
+			}
+		}
+		else
+		{
+			SCRIPT_ERROR_CHECK();
+
+			ERROR_MSG(fmt::format("EntityComponent::isSameCellDataType: not found property({}), use default values! name={}, utype={}, domain={}.\n",
+				propertyDescription->getName(), pScriptDefModule_ ? pScriptDefModule_->getName() : "", pScriptDefModule_ ? pScriptDefModule_->getUType() : 0,
+				COMPONENT_NAME_EX(CELLAPP_TYPE)));
+
+			return false;
+		}
+	}
+
+	return true;
+}
+
+//-------------------------------------------------------------------------------------
+PyObject* EntityComponentType::parseDefaultStr(std::string defaultVal)
+{
+	KBE_ASSERT(EntityDef::context().currEntityID > 0);
+
+	PyObject* pyobj = pScriptDefModule_->createObject();
+
+	// 执行Entity的构造函数
+	return new(pyobj) EntityComponent(EntityDef::context().currEntityID, pScriptDefModule_, EntityDef::context().currComponentType);
+}
+
+//-------------------------------------------------------------------------------------
+void EntityComponentType::addToStream(MemoryStream* mstream, PyObject* pyValue)
+{
+	EntityComponent* pEntityComponent = static_cast<EntityComponent*>(pyValue);
+	pEntityComponent->addToStream(mstream, pyValue);
+}
+
+//-------------------------------------------------------------------------------------
+void EntityComponentType::addPersistentToStream(MemoryStream* mstream, PyObject* pyValue)
+{
+	if (PyDict_Check(pyValue))
+	{
+		ScriptDefModule::PROPERTYDESCRIPTION_MAP& propertyDescrs = pScriptDefModule_->getPersistentPropertyDescriptions();
+		ScriptDefModule::PROPERTYDESCRIPTION_MAP::const_iterator iter = propertyDescrs.begin();
+
+		for (; iter != propertyDescrs.end(); ++iter)
+		{
+			PropertyDescription* propertyDescription = iter->second;
+
+			// 如果这里传入的是一个字典，那么肯定是一个celldata字典，因此这里只查找cell属性
+			if (!propertyDescription->hasCell())
+				continue;
+
+			PyObject* pyVal = PyDict_GetItemString(pyValue, propertyDescription->getName());
+
+			if (pyVal)
+			{
+				propertyDescription->getDataType()->addToStream(mstream, pyVal);
+			}
+			else
+			{
+				SCRIPT_ERROR_CHECK();
+
+				ERROR_MSG(fmt::format("EntityComponent::addPersistentToStream: not found property({}), use default values! name={}, utype={}, domain={}.\n",
+					propertyDescription->getName(), pScriptDefModule_ ? pScriptDefModule_->getName() : "", pScriptDefModule_ ? pScriptDefModule_->getUType() : 0,
+					COMPONENT_NAME_EX(CELLAPP_TYPE)));
+
+				propertyDescription->addToStream(mstream, NULL);
+			}
+		}
+
+		return;
+	}
+
+	EntityComponent* pEntityComponent = static_cast<EntityComponent*>(pyValue);
+	pEntityComponent->addPersistentToStream(mstream, pyValue);
+}
+
+//-------------------------------------------------------------------------------------
+void EntityComponentType::addCellDataToStream(MemoryStream* mstream, uint32 flags, PyObject* pyValue, 
+	ENTITY_ID ownerID, PropertyDescription* parentPropertyDescription, COMPONENT_TYPE sendtoComponentType, bool checkValue)
+{
+	KBE_ASSERT(PyDict_Check(pyValue));
+
+	(*mstream) << sendtoComponentType << ownerID << pScriptDefModule_->getUType();
+
+	ScriptDefModule::PROPERTYDESCRIPTION_MAP& propertyDescrs = pScriptDefModule_->getCellPropertyDescriptions();
+
+	uint16 count = 0;
+
+	ScriptDefModule::PROPERTYDESCRIPTION_MAP::const_iterator iter = propertyDescrs.begin();
+
+	for (; iter != propertyDescrs.end(); ++iter)
+	{
+		PropertyDescription* propertyDescription = iter->second;
+
+		if (!propertyDescription->hasCell())
+			continue;
+
+		if (flags == 0 || (flags & propertyDescription->getFlags()) > 0)
+		{
+			++count;
+		}
+	}
+
+	(*mstream) << count;
+
+	iter = propertyDescrs.begin();
+
+	for (; iter != propertyDescrs.end(); ++iter)
+	{
+		PropertyDescription* propertyDescription = iter->second;
+
+		if (!propertyDescription->hasCell())
+			continue;
+
+		if (flags == 0 || (flags & propertyDescription->getFlags()) > 0)
+		{
+			PyObject* pyVal = PyDict_GetItemString(pyValue, propertyDescription->getName());
+
+			if (pyVal)
+			{
+				if (checkValue && !propertyDescription->getDataType()->isSameType(pyVal))
+				{
+					ERROR_MSG(fmt::format("EntityComponent::addCellDataToStream: {} type(curr_py: {} != {}) error, use default values! name={}, utype={}, domain={}.\n",
+						propertyDescription->getName(), (pyVal ? pyVal->ob_type->tp_name : "unknown"), propertyDescription->getDataType()->getName(),
+						pScriptDefModule_ ? pScriptDefModule_->getName() : "", pScriptDefModule_ ? pScriptDefModule_->getUType() : 0,
+						COMPONENT_NAME_EX(sendtoComponentType)));
+
+					if (parentPropertyDescription)
+					{
+						if (sendtoComponentType == CLIENT_TYPE && pScriptDefModule_->usePropertyDescrAlias())
+						{
+							(*mstream) << parentPropertyDescription->aliasIDAsUint8();
+							(*mstream) << propertyDescription->aliasIDAsUint8();
+						}
+						else
+						{
+							(*mstream) << parentPropertyDescription->getUType();
+							(*mstream) << propertyDescription->getUType();
+						}
+					}
+
+					propertyDescription->addToStream(mstream, NULL);
+				}
+				else
+				{
+					if (parentPropertyDescription)
+					{
+						if (sendtoComponentType == CLIENT_TYPE && pScriptDefModule_->usePropertyDescrAlias())
+						{
+							(*mstream) << parentPropertyDescription->aliasIDAsUint8();
+							(*mstream) << propertyDescription->aliasIDAsUint8();
+						}
+						else
+						{
+							(*mstream) << parentPropertyDescription->getUType();
+							(*mstream) << propertyDescription->getUType();
+						}
+					}
+
+					propertyDescription->getDataType()->addToStream(mstream, pyVal);
+				}
+			}
+			else
+			{
+				SCRIPT_ERROR_CHECK();
+
+				ERROR_MSG(fmt::format("EntityComponent::addCellDataToStream: not found property({}), use default values! name={}, utype={}, domain={}.\n",
+					propertyDescription->getName(), pScriptDefModule_ ? pScriptDefModule_->getName() : "", pScriptDefModule_ ? pScriptDefModule_->getUType() : 0,
+					COMPONENT_NAME_EX(sendtoComponentType)));
+
+				if (parentPropertyDescription)
+				{
+					if (sendtoComponentType == CLIENT_TYPE && pScriptDefModule_->usePropertyDescrAlias())
+					{
+						(*mstream) << parentPropertyDescription->aliasIDAsUint8();
+						(*mstream) << propertyDescription->aliasIDAsUint8();
+					}
+					else
+					{
+						(*mstream) << parentPropertyDescription->getUType();
+						(*mstream) << propertyDescription->getUType();
+					}
+				}
+
+				propertyDescription->addToStream(mstream, NULL);
+			}
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------
+PyObject* EntityComponentType::createFromStream(MemoryStream* mstream)
+{
+	KBE_ASSERT(EntityDef::context().currEntityID > 0);
+
+	PyObject* pyobj = pScriptDefModule_->createObject();
+
+	// 执行Entity的构造函数
+	PyObject* pyEntityComponent = new(pyobj) EntityComponent(EntityDef::context().currEntityID, pScriptDefModule_, EntityDef::context().currComponentType);
+
+	EntityComponent* pEntityComponent = static_cast<EntityComponent*>(pyEntityComponent);
+	return pEntityComponent->createFromStream(mstream);
+}
+
+//-------------------------------------------------------------------------------------
+PyObject* EntityComponentType::createFromPersistentStream(MemoryStream* mstream)
+{
+	KBE_ASSERT(EntityDef::context().currEntityID > 0);
+
+	PyObject* pyobj = pScriptDefModule_->createObject();
+
+	// 执行Entity的构造函数
+	PyObject* pyEntityComponent = new(pyobj) EntityComponent(EntityDef::context().currEntityID, pScriptDefModule_, EntityDef::context().currComponentType);
+
+	EntityComponent* pEntityComponent = static_cast<EntityComponent*>(pyEntityComponent);
+	return pEntityComponent->createFromPersistentStream(mstream);
+}
+
+//-------------------------------------------------------------------------------------
+PyObject* EntityComponentType::createCellData()
+{
+	PyObject* cellDataDict = PyDict_New();
+
+	ScriptDefModule::PROPERTYDESCRIPTION_MAP& propertyDescrs = pScriptDefModule_->getCellPropertyDescriptions();
+	ScriptDefModule::PROPERTYDESCRIPTION_MAP::const_iterator iter = propertyDescrs.begin();
+	for (; iter != propertyDescrs.end(); ++iter)
+	{
+		PropertyDescription* propertyDescription = iter->second;
+		DataType* dataType = propertyDescription->getDataType();
+
+		if (dataType)
+		{
+			PyObject* pyObj = propertyDescription->newDefaultVal();
+			PyDict_SetItemString(cellDataDict, propertyDescription->getName(), pyObj);
+			Py_DECREF(pyObj);
+		}
+		else
+		{
+			ERROR_MSG(fmt::format("EntityComponentType::createCellData: {} PropertyDescription the dataType is NULL! component={}\n",
+				propertyDescription->getName(), pScriptDefModule_->getName()));
+		}
+
+		SCRIPT_ERROR_CHECK();
+	}
+
+	return cellDataDict;
+}
+
+//-------------------------------------------------------------------------------------
+PyObject* EntityComponentType::createCellDataFromStream(MemoryStream* mstream)
+{
+	COMPONENT_TYPE componentType;
+	ENTITY_SCRIPT_UID ComponentDescrsType;
+	uint16 count;
+	ENTITY_ID ownerID;
+
+	(*mstream) >> componentType >> ownerID >> ComponentDescrsType >> count;
+
+	PyObject* cellDataDict = PyDict_New();
+
+	ScriptDefModule::PROPERTYDESCRIPTION_MAP& propertyDescrs = pScriptDefModule_->getCellPropertyDescriptions();
+	ScriptDefModule::PROPERTYDESCRIPTION_MAP::const_iterator iter = propertyDescrs.begin();
+
+	for (; iter != propertyDescrs.end(); ++iter)
+	{
+		PropertyDescription* propertyDescription = iter->second;
+
+		ENTITY_PROPERTY_UID uid;
+		(*mstream) >> uid >> uid;
+
+		KBE_ASSERT(propertyDescription->getUType() == uid);
+
+		PyObject* pyobj = propertyDescription->createFromStream(mstream);
+
+		if (pyobj == NULL)
+		{
+			SCRIPT_ERROR_CHECK();
+
+			ERROR_MSG(fmt::format("EntityComponentType::createCellDataFromStream: property({}) error, use default values! name={}, utype={}.\n",
+				propertyDescription->getName(), pScriptDefModule_ ? pScriptDefModule_->getName() : "", pScriptDefModule_ ? pScriptDefModule_->getUType() : 0));
+
+			pyobj = propertyDescription->newDefaultVal();
+		}
+
+		PyDict_SetItemString(cellDataDict, propertyDescription->getName(), pyobj);
+		Py_DECREF(pyobj);
+	}
+
+	return cellDataDict;
+}
+
+//-------------------------------------------------------------------------------------
+PyObject* EntityComponentType::createCellDataFromPersistentStream(MemoryStream* mstream)
+{
+	PyObject* cellDataDict = PyDict_New();
+
+	ScriptDefModule::PROPERTYDESCRIPTION_MAP& propertyDescrs = pScriptDefModule_->getPersistentPropertyDescriptions();
+	ScriptDefModule::PROPERTYDESCRIPTION_MAP::const_iterator iter = propertyDescrs.begin();
+
+	for (; iter != propertyDescrs.end(); ++iter)
+	{
+		PropertyDescription* propertyDescription = iter->second;
+
+		if (!propertyDescription->hasCell())
+			continue;
+
+		PyObject* pyobj = propertyDescription->createFromStream(mstream);
+
+		if (pyobj == NULL)
+		{
+			SCRIPT_ERROR_CHECK();
+
+			ERROR_MSG(fmt::format("EntityComponentType::createCellDataFromPersistentStream: property({}) error, use default values! name={}, utype={}.\n",
+				propertyDescription->getName(), pScriptDefModule_ ? pScriptDefModule_->getName() : "", pScriptDefModule_ ? pScriptDefModule_->getUType() : 0));
+
+			pyobj = propertyDescription->newDefaultVal();
+		}
+
+		PyDict_SetItemString(cellDataDict, propertyDescription->getName(), pyobj);
+		Py_DECREF(pyobj);
+	}
+
+	return cellDataDict;
 }
 
 //-------------------------------------------------------------------------------------

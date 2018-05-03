@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 #include "baseapp.h"
 #include "entity_remotemethod.h"
@@ -41,8 +23,8 @@ SCRIPT_INIT(EntityRemoteMethod, tp_call, 0, 0, 0, 0)
 
 //-------------------------------------------------------------------------------------
 EntityRemoteMethod::EntityRemoteMethod(MethodDescription* methodDescription, 
-						EntityCallAbstract* entitycall):
-RemoteEntityMethod(methodDescription, entitycall, getScriptType())
+						EntityCallAbstract* entityCall):
+RemoteEntityMethod(methodDescription, entityCall, getScriptType())
 {
 }
 
@@ -57,18 +39,18 @@ PyObject* EntityRemoteMethod::tp_call(PyObject* self, PyObject* args,
 {	
 	EntityRemoteMethod* rmethod = static_cast<EntityRemoteMethod*>(self);
 	MethodDescription* methodDescription = rmethod->getDescription();
-	EntityCallAbstract* entitycall = rmethod->getEntityCall();
+	EntityCallAbstract* entityCall = rmethod->getEntityCall();
 
-	if (!entitycall->isClient() || entitycall->type() == ENTITYCALL_TYPE_CLIENT_VIA_CELL /* 需要先经过cell */ )
+	if (!entityCall->isClient() || entityCall->type() == ENTITYCALL_TYPE_CLIENT_VIA_CELL /* 需要先经过cell */ )
 	{
 		return RemoteEntityMethod::tp_call(self, args, kwds);
 	}
 
-	Entity* pEntity = Baseapp::getSingleton().findEntity(entitycall->id());
+	Entity* pEntity = Baseapp::getSingleton().findEntity(entityCall->id());
 	if(pEntity == NULL)
 	{
 		//WARNING_MSG(fmt::format("EntityRemoteMethod::callClientMethod: not found entity({}).\n",
-		//	entitycall->id()));
+		//	entityCall->id()));
 
 		return RemoteEntityMethod::tp_call(self, args, kwds);
 	}
@@ -77,7 +59,7 @@ PyObject* EntityRemoteMethod::tp_call(PyObject* self, PyObject* args,
 	if(methodDescription->checkArgs(args))
 	{
 		Network::Bundle* pBundle = Network::Bundle::createPoolObject();
-		entitycall->newCall((*pBundle));
+		entityCall->newCall((*pBundle));
 
 		MemoryStream* mstream = MemoryStream::createPoolObject();
 		methodDescription->addToStream(mstream, args);

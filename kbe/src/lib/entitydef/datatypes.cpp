@@ -1,22 +1,4 @@
-/*
-This source file is part of KBEngine
-For the latest info, see http://www.kbengine.org/
-
-Copyright (c) 2008-2018 KBEngine.
-
-KBEngine is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-KBEngine is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
- 
-You should have received a copy of the GNU Lesser General Public License
-along with KBEngine.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2008-2018 Yolo Technologies, Inc. All Rights Reserved. https://www.comblockengine.com
 
 
 #include "datatypes.h"
@@ -111,6 +93,7 @@ bool DataTypes::loadTypes(std::string& file)
 		{
 			ERROR_MSG(fmt::format("DataTypes::loadTypes: Not allowed to use the prefix \"_\"! aliasName={}\n",
 				aliasName.c_str()));
+
 			return false;
 		}
 
@@ -244,24 +227,32 @@ void DataTypes::delDataType(std::string name)
 }
 
 //-------------------------------------------------------------------------------------
-DataType* DataTypes::getDataType(std::string name)
+DataType* DataTypes::getDataType(std::string name, bool notFoundOutError)
 {
 	DATATYPE_MAP::iterator iter = dataTypes_.find(name);
 	if (iter != dataTypes_.end()) 
 		return iter->second.get();
 
-	ERROR_MSG(fmt::format("DataTypes::getDataType:not found type {}.\n", name.c_str()));
+	if (notFoundOutError)
+	{
+		ERROR_MSG(fmt::format("DataTypes::getDataType:not found type {}.\n", name.c_str()));
+	}
+
 	return NULL;
 }
 
 //-------------------------------------------------------------------------------------
-DataType* DataTypes::getDataType(const char* name)
+DataType* DataTypes::getDataType(const char* name, bool notFoundOutError)
 {
 	DATATYPE_MAP::iterator iter = dataTypes_.find(name);
 	if (iter != dataTypes_.end()) 
 		return iter->second.get();
 
-	ERROR_MSG(fmt::format("DataTypes::getDataType:not found type {}.\n", name));
+	if (notFoundOutError)
+	{
+		ERROR_MSG(fmt::format("DataTypes::getDataType:not found type {}.\n", name));
+	}
+
 	return NULL;
 }
 
